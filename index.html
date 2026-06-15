@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AxelAi PropOS Search</title>
+  <style>
+    :root{
+      --bg:#030712;
+      --panel:rgba(7,12,25,.84);
+      --line:rgba(148,163,184,.24);
+      --text:#e5e7eb;
+      --muted:#94a3b8;
+      --accent:#38bdf8;
+      --accent2:#fb923c;
+      --good:#22c55e;
+      --danger:#f87171;
+    }
+    *{box-sizing:border-box}
+    html,body{margin:0;min-height:100%;font-family:Inter,system-ui,-apple-system,Segoe UI,Arial,sans-serif;background:var(--bg);color:var(--text)}
+    body{
+      background:
+        radial-gradient(circle at 20% 15%, rgba(56,189,248,.18), transparent 28%),
+        radial-gradient(circle at 80% 30%, rgba(251,146,60,.12), transparent 25%),
+        radial-gradient(circle at 50% 100%, rgba(14,165,233,.12), transparent 32%),
+        #030712;
+      overflow-x:hidden;
+    }
+    .stars:before,.stars:after{
+      content:"";position:fixed;inset:0;pointer-events:none;opacity:.38;
+      background-image:
+        radial-gradient(#fff 1px, transparent 1px),
+        radial-gradient(#93c5fd 1px, transparent 1px);
+      background-size:90px 90px,140px 140px;
+      background-position:0 0,40px 55px;
+    }
+    .wrap{position:relative;z-index:1;width:min(980px,calc(100% - 28px));margin:0 auto;padding:12vh 0 42px}
+    .brand{display:flex;align-items:center;gap:12px;margin-bottom:22px}
+    .orb{width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));box-shadow:0 0 35px rgba(56,189,248,.45)}
+    .brand h1{font-size:clamp(24px,4vw,42px);line-height:1;margin:0;letter-spacing:-.04em}
+    .brand p{margin:5px 0 0;color:var(--muted);font-size:14px}
+    .searchBox{
+      border:1px solid var(--line);
+      background:linear-gradient(180deg, rgba(15,23,42,.86), rgba(2,6,23,.86));
+      border-radius:22px;
+      padding:18px;
+      box-shadow:0 24px 90px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.05);
+      backdrop-filter:blur(12px);
+    }
+    form{display:flex;gap:10px}
+    input{
+      flex:1;min-width:0;border:1px solid rgba(148,163,184,.26);outline:none;
+      border-radius:15px;background:rgba(2,6,23,.72);color:var(--text);
+      padding:16px 17px;font-size:16px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.02);
+    }
+    input:focus{border-color:rgba(56,189,248,.75);box-shadow:0 0 0 4px rgba(56,189,248,.11)}
+    button{
+      border:0;border-radius:15px;padding:0 22px;font-weight:800;font-size:15px;cursor:pointer;
+      color:#020617;background:linear-gradient(135deg,var(--accent),var(--accent2));
+      box-shadow:0 12px 30px rgba(56,189,248,.18);
+      white-space:nowrap;
+    }
+    button:disabled{opacity:.55;cursor:not-allowed}
+    .hint{display:flex;justify-content:space-between;gap:14px;margin:12px 4px 0;color:var(--muted);font-size:12px}
+    .status{margin-top:18px;color:var(--muted);font-size:14px;min-height:20px}
+    .answer{
+      margin-top:16px;border:1px solid var(--line);background:rgba(2,6,23,.58);
+      border-radius:18px;padding:18px;line-height:1.62;font-size:15px;white-space:pre-wrap;
+    }
+    .answer:empty{display:none}
+    .error{color:var(--danger)}
+    .examples{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+    .chip{
+      border:1px solid rgba(148,163,184,.22);background:rgba(15,23,42,.52);
+      color:#cbd5e1;border-radius:999px;padding:8px 11px;font-size:12px;cursor:pointer;
+    }
+    .chip:hover{border-color:rgba(56,189,248,.55);color:#fff}
+    @media(max-width:640px){
+      .wrap{padding-top:8vh}
+      form{flex-direction:column}
+      button{height:52px}
+      .hint{flex-direction:column}
+    }
+  </style>
+</head>
+<body>
+  <div class="stars"></div>
+  <main class="wrap">
+    <div class="brand">
+      <div class="orb"></div>
+      <div>
+        <h1>AxelAi PropOS Search</h1>
+        <p>Texas real estate answers from your artifacts + live internet search.</p>
+      </div>
+    </div>
+
+    <section class="searchBox">
+      <form id="askForm">
+        <input id="question" autocomplete="off" placeholder="Ask a Texas real estate question..." />
+        <button id="askBtn" type="submit">Ask</button>
+      </form>
+      <div class="hint">
+        <span>Answers use the built-in AxelAi/Texas RE knowledge base first.</span>
+        <span>Live internet search is handled by the backend.</span>
+      </div>
+      <div class="examples">
+        <span class="chip">What is steering?</span>
+        <span class="chip">How do I calculate acres from square feet?</span>
+        <span class="chip">What is the IABS form in Texas?</span>
+        <span class="chip">What does AxelAi PropOS do?</span>
+      </div>
+      <div id="status" class="status"></div>
+      <div id="answer" class="answer"></div>
+    </section>
+  </main>
+
+<script>
+  // For Netlify deploy: leave this as is.
+  // For GoDaddy/static HTML: set window.AXEL_AI_API_ENDPOINT to your deployed Netlify function URL before this script.
+  const API_ENDPOINT = window.AXEL_AI_API_ENDPOINT || "/.netlify/functions/ask";
+
+  const form = document.getElementById("askForm");
+  const input = document.getElementById("question");
+  const btn = document.getElementById("askBtn");
+  const statusEl = document.getElementById("status");
+  const answerEl = document.getElementById("answer");
+
+  document.querySelectorAll(".chip").forEach(chip => {
+    chip.addEventListener("click", () => {
+      input.value = chip.textContent;
+      form.requestSubmit();
+    });
+  });
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const question = input.value.trim();
+    if (!question) return;
+
+    btn.disabled = true;
+    statusEl.textContent = "Searching artifacts + internet...";
+    statusEl.className = "status";
+    answerEl.textContent = "";
+
+    try {
+      const res = await fetch(API_ENDPOINT, {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ question })
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "The search backend did not respond correctly.");
+
+      answerEl.textContent = data.answer || "No answer returned.";
+      statusEl.textContent = data.usedWeb ? "Answered with local artifact knowledge + web search." : "Answered with local artifact knowledge.";
+    } catch (err) {
+      statusEl.textContent = "Backend setup needed.";
+      statusEl.className = "status error";
+      answerEl.textContent =
+        "This search bar is real, but it needs the serverless backend connected. " +
+        "Deploy the included Netlify function and set OPENAI_API_KEY. Error: " + err.message;
+    } finally {
+      btn.disabled = false;
+    }
+  });
+</script>
+</body>
+</html>
